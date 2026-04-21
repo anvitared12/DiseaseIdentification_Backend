@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
 from PIL import Image
-import tensorflow as tf
+from tflite_runtime.interpreter import Interpreter
 
 
 def load_tflite_model(model_path: str, class_names_path: str):
@@ -10,13 +10,13 @@ def load_tflite_model(model_path: str, class_names_path: str):
     if not model_file.exists():
         raise FileNotFoundError(f"Model file not found at {model_file.resolve()}")
 
-    interpreter = tf.lite.Interpreter(model_path=str(model_file))
+    interpreter = Interpreter(model_path=str(model_file))
     interpreter.allocate_tensors()
 
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
-    input_shape = input_details[0]['shape']   # e.g. [1, H, W, 3]
+    input_shape = input_details[0]['shape']   # [1, H, W, 3]
     img_size = (int(input_shape[1]), int(input_shape[2]))
     print(f"[model] Loaded TFLite model. Input shape: {input_shape}, img_size={img_size}")
     print(f"[model] Output shape: {output_details[0]['shape']}")
@@ -40,7 +40,8 @@ def load_tflite_model(model_path: str, class_names_path: str):
 def preprocess(image: Image.Image, img_size: tuple) -> np.ndarray:
     img = image.resize(img_size)
     arr = np.array(img, dtype=np.float32)
-    arr = tf.keras.applications.efficientnet.preprocess_input(arr)
+    # EfficientNet preprocessing: scale to [-1, 1]
+    arr = (arr / 127.5) - 1.0
     return np.expand_dims(arr, axis=0)
 
 
@@ -54,7 +55,7 @@ def predict_disease(
 ) -> dict:
     arr = preprocess(image, img_size)
 
-    # TFLite expects the exact dtype the model was quantized with
+    # Cast to the dtype the model expects (float32, uint8, int8, etc.)
     expected_dtype = input_details[0]['dtype']
     arr = arr.astype(expected_dtype)
 
