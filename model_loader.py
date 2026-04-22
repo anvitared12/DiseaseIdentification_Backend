@@ -40,8 +40,6 @@ def load_tflite_model(model_path: str, class_names_path: str):
 def preprocess(image: Image.Image, img_size: tuple) -> np.ndarray:
     img = image.resize(img_size)
     arr = np.array(img, dtype=np.float32)
-    # EfficientNet preprocessing: scale to [-1, 1]
-    arr = (arr / 127.5) - 1.0
     return np.expand_dims(arr, axis=0)
 
 
